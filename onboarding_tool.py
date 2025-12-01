@@ -34,29 +34,41 @@ class OnboardingTool(BaseTool):
         },
     )
 
-    def run(self) -> str:
+    def run(self):
         """
-        Serialize the selected values into onboarding_config.py for the agent to consume.
+        Saves the configuration as a Python file with a config object
         """
         tool_dir = os.path.dirname(os.path.abspath(__file__))
         config_path = os.path.join(tool_dir, "onboarding_config.py")
-        config = self.model_dump()
+        config = self.model_dump(exclude_none=True)
 
-        json_str = json.dumps(config, indent=4)
-        json_str = (
-            json_str.replace(": true", ": True")
-            .replace(": false", ": False")
-            .replace(": null", ": None")
-        )
-        python_code = f"# Auto-generated onboarding configuration\n\nconfig = {json_str}\n"
+        try:
+            # Generate Python code with the config as a dictionary
+            python_code = "# Auto-generated onboarding configuration\n\n"
+            python_code += "config = {\n"
 
-        with open(config_path, "w", encoding="utf-8") as file:
-            file.write(python_code)
+            for i, (key, value) in enumerate(config.items()):
+                # Convert value to Python-compatible string
+                if isinstance(value, bool):
+                    value_str = "True" if value else "False"
+                elif value is None:
+                    value_str = "None"
+                else:
+                    value_str = json.dumps(value, ensure_ascii=False)
+                
+                python_code += f"    \"{key}\": {value_str}"
+                if i < len(config) - 1:
+                    python_code += ","
+                python_code += "\n"
 
-        return (
-            f"Configuration saved at: {config_path}\n\n"
-            "You can now import it with:\nfrom onboarding_config import config"
-        )
+            python_code += "}\n"
+
+            with open(config_path, "w", encoding="utf-8") as f:
+                f.write(python_code)
+
+            return f"Configuration saved at: {config_path}\n\nYou can now import it with:\nfrom onboarding_config import config"
+        except Exception as e:
+            return f"Error writing config file: {str(e)}"
 
 
 if __name__ == "__main__":
