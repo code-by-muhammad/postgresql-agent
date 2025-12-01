@@ -1,3 +1,7 @@
 agency-swarm[fastapi]>=1.2.1
 fastapi
 uvicorn
+python-dotenv>=1.1.0
+psycopg[binary]>=3.2
+sqlglot>=23.0.0
+pytest>=8.2
