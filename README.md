@@ -1,240 +1,126 @@
-# Agency Swarm GitHub Template
+# PostgreSQL Read-Only Agent
 
-A production-ready template for deploying [Agency Swarm](https://github.com/VRSEN/agency-swarm) agencies with Docker containerization and automated deployment to the [Agencii](https://agencii.ai/) cloud platform.
-
-**🌐 [Agencii](https://agencii.ai/)** - The official cloud platform for Agency Swarm deployments  
-**🔗 [GitHub App](https://github.com/apps/agencii)** - Automated deployment integration
+A production-ready Agency Swarm agent focused on answering business questions with **validated read-only SQL**. It packages a configurable onboarding workflow, strict guardrails, and a toolbelt for inspecting PostgreSQL schemas, describing tables, and executing safe SELECT/CTE queries.
 
 ---
 
-## 🚀 Quick Start
-
-### 1. Use This Template
-
-Click **"Use this template"** to create your own repository, or:
-
-```bash
-git clone https://github.com/your-username/agency-github-template.git
-cd agency-github-template
-```
-
-> **🌐 For Production**: Sign up at [agencii.ai](https://agencii.ai/) and use this template for automated cloud deployment
-
-### 2. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Set Up Environment Variables
-
-Create a `.env` file in the root directory:
-
-```bash
-# Required
-OPENAI_API_KEY=your_openai_api_key_here
-
-# Optional - Add any additional API keys your agents need
-# EXAMPLE_API_KEY=your_api_key_here
-```
-
-### 4. Test the Example Agency
-
-```bash
-python agency.py
-```
-
-This runs the example agency in terminal mode for testing.
-
-> **💡 Pro Tip**: For creating your own agency, open this template in [Cursor IDE](https://cursor.sh/) and use the AI assistant with the `.cursor/rules/workflow.mdc` file for automated agency creation!
+## ✨ Highlights
+- **Read-only enforcement** – `input_guardrail.py` and `ensure_read_only_sql` block INSERT/UPDATE/DDL intent before any tool runs.
+- **Configurable onboarding** – `onboarding_tool.py` generates `onboarding_config.py`, allowing custom agent name/description, model selection (`gpt-4.1`, `gpt-5`, `gpt-5.1`), and guardrail toggles.
+- **Purpose-built tooling**
+  - `PgListSchemasTool` – enumerate non-system schemas.
+  - `PgListTablesTool` – list tables within a schema.
+  - `PgDescribeTableTool` – inspect column metadata.
+  - `PgRunReadQueryTool` – execute validated SQL with row limits and timeouts.
+- **Optimized instructions** – `postgresql_agent/instructions.md` keeps responses concise, SQL-first, and transparent about truncation/limits.
 
 ---
 
-## 🏗️ Project Structure
-
+## 📁 Repository Layout
 ```
-agency-github-template/
-├── agency.py                 # Main entry point
-├── requirements.txt          # Python dependencies
-├── Dockerfile               # Container configuration
-├── .env                     # Environment variables (create this)
-├── example_agent/           # Your agency folder
-    ├── __init__.py
-    ├── example_agent.py
-    ├── instructions.md
-    ├── files/               # Local files accessible to the agent (via files_folder)
-    └── tools/
-        └── ExampleTool.py
-├── example_agent2/
-├── agency_manifesto.md  # Shared instructions
+postgresql-agent/
+├── agency.py                     # Optional multi-agent entry point
+├── onboarding_tool.py            # CLI to create onboarding_config.py
+├── postgresql_agent/
+│   ├── __init__.py               # expose create_postgresql_agent
+│   ├── instructions.md           # system prompt for the agent
+│   ├── input_guardrail.py        # read-only guardrail logic
+│   ├── postgresql_agent.py       # agent factory + standalone runner
+│   ├── tools/                    # PostgreSQL tools (schemas/tables/queries)
+│   └── utils/                    # shared DB connector + SQL validator
 ├── requirements.txt
-├── .env
-└──...
+└── README.md
 ```
 
 ---
 
-## 🔧 Creating Your Own Agency
+## 🧰 Requirements
+- Python 3.11+ (3.12 recommended)
+- PostgreSQL connection string with read access
+- OpenAI API key with access to the selected model
 
-### 🤖 **AI-Assisted Agency Creation with Cursor**
+---
 
-This template includes **AI-powered agency creation** using Cursor IDE:
-
-1. **Open this project in Cursor IDE**
-
-2. **Use the AI Assistant** to create your agency by referencing:
+## ⚙️ Setup
+1. **Clone & create a virtual environment**
+   ```bash
+   git clone <repo-url> postgresql-agent
+   cd postgresql-agent
+   python3 -m venv .venv
+   source .venv/bin/activate
    ```
-   📁 .cursor/rules/workflow.mdc
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
    ```
-3. **Simply ask the AI:**
-
-   > "Create a new agency using the .cursor workflow"
-
-   The AI will guide you through the complete 7-step process:
-
-   - ✅ PRD Creation
-   - ✅ Folder Structure Setup
-   - ✅ Tool Development
-   - ✅ Agent Creation
-   - ✅ Agency Configuration
-   - ✅ Testing & Validation
-   - ✅ Iteration & Refinement
-
-### 📋 **What the AI Will Do For You**
-
-The AI assistant will automatically:
-
-- Create proper folder structures
-- Generate agent classes and instructions
-- Build custom tools with full functionality
-- Set up communication flows
-- Create the main agency file
-- Test everything to ensure it works
-
-### 🚀 **Manual Alternative (Advanced Users)**
-
-If you prefer manual setup, replace the `ExampleAgency/` folder with your own agency structure following the Agency Swarm conventions.
-
-### Agency Structure Requirements
-
-Your agency must follow this structure:
-
-- **Agency Folder**: Contains all agents and manifesto
-- **Agent Folders**: Each agent has its own folder with:
-  - `AgentName.py` - Agent class definition
-  - `instructions.md` - Agent-specific instructions
-  - `tools/` - Folder containing agent tools
-- **agency_manifesto.md** - Shared instructions for all agents
+3. **Create `.env`**
+   ```bash
+   OPENAI_API_KEY=sk-...
+   PG_URL=postgresql://user:pass@host:5432/dbname
+   # Optional
+   PG_DEFAULT_SCHEMA=public
+   PG_DEFAULT_TABLE=users
+   PG_TEST_SQL="SELECT 1"
+   ```
+4. **Generate the onboarding config**
+   ```bash
+   python onboarding_tool.py
+   ```
+   The CLI serializes your selections to `onboarding_config.py`. Re-run anytime you need to update the agent identity or model.
 
 ---
 
-## 🚀 Production Deployment with Agencii
+## ▶️ Running the Agent
+### Standalone evaluation
+```bash
+PYTHONPATH=. python postgresql_agent/postgresql_agent.py
+```
+The script spins up the agent, runs a small suite of prompts (schema listing, table description, write attempt), and prints the responses. Guardrail violations are logged but don’t crash the process.
 
-### **🌐 Deploy to Agencii Cloud Platform**
+### Import into your own agency
+```python
+from postgresql_agent import create_postgresql_agent
 
-For production deployment, use the [Agencii](https://agencii.ai/) platform:
-
-#### **Step 1: Create Account & Use Template**
-
-1. **Sign up** at [agencii.ai](https://agencii.ai/)
-2. **Use this template** to create your repository
-3. **Develop your agency** using Cursor IDE with `.cursor` workflow
-
-#### **Step 2: Install GitHub App**
-
-1. **Install** the [Agencii GitHub App](https://github.com/apps/agencii)
-2. **Grant permissions** to your repository
-3. **Configure** environment variables in Agencii dashboard
-
-#### **Step 3: Deploy**
-
-1. **Push to main branch** - Agencii automatically detects and deploys
-2. **Monitor deployment** in your Agencii dashboard
-3. **Access your live agency** via provided endpoints
-
-### **🔄 Automatic Deployments**
-
-- **Auto-deploy** on every push to `main` branch
-- **Zero-downtime** deployments with rollback capability
-- **Environment management** through Agencii dashboard
+postgres_agent = create_postgresql_agent()
+```
+Pass `postgres_agent` into your `Agency` communication flow or orchestrator. The guardrail and tools are wired up automatically based on `onboarding_config.py`.
 
 ---
 
-## 🔨 Development Workflow
+## 🔐 Guardrails & Validation
+- **Input guardrail** (`input_guardrail.py`) inspects raw user text for write intent and blocks anything that isn’t satisfiable with SELECT/CTE/VALUES SQL.
+- **SQL validator** (`pg_readonly_validator.py`) parses statements via `sqlglot`, rejects forbidden AST nodes (INSERT/UPDATE/DDL/LOCK/etc.), and enforces read-only root expressions.
+- **DB connector** (`pg_connection.py`) opens sessions with `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY`, statement timeouts, and idle-in-transaction limits.
 
-### **🎯 Recommended: AI-Assisted Development**
-
-1. **Open Cursor IDE** with this template
-2. **Ask the AI**: _"Create a new agency using the .cursor workflow"_
-3. **Follow the guided process** - the AI handles everything automatically
-4. **Test your agency**: `python agency.py`
-5. **Deploy to production**: Install [Agencii GitHub App](https://github.com/apps/agencii) and push to main
-
-### **⚙️ Manual Development (Advanced)**
-
-If you prefer hands-on development:
-
-1. **Create Tools**: Build agent tools in `tools/` folders
-2. **Configure Agents**: Write `instructions.md` and agent classes
-3. **Test Locally**: Run `python agency.py`
-4. **Deploy**: Push to your preferred platform
-
-The `.cursor/rules/workflow.mdc` file contains the complete development specifications for manual implementation.
+These layers ensure the agent cannot modify data even if a malicious prompt slips through.
 
 ---
 
-## 📚 Key Features
+## 🛠️ Tool Reference
+| Tool | Description | Key Inputs |
+| --- | --- | --- |
+| `PgListSchemasTool` | Lists all non-system schemas. | _none_ |
+| `PgListTablesTool` | Lists tables for a schema. | `target_schema` |
+| `PgDescribeTableTool` | Returns column name/type/nullability. | `target_schema`, `table` |
+| `PgRunReadQueryTool` | Executes validated read-only SQL. | `sql`, `max_rows`, `timeout_ms` |
 
-- **🌐 Agencii Cloud Deploy**: One-click deployment to [Agencii platform](https://agencii.ai/)
-- **🤖 AI-Assisted Creation**: Built-in Cursor IDE workflow for automated agency development
-- **🔄 Auto-Deploy**: Automatic deployment on push to main branch
-- **🚀 Ready-to-Deploy**: Dockerfile and requirements included
-- **🔧 Modular Structure**: Easy to customize and extend
-- **🛠️ Example Implementation**: Complete working example
-- **📦 Container Ready**: Docker configuration for any platform
-- **🔒 Environment Management**: Secure API key handling via Agencii dashboard
-- **🧪 Local Testing**: Terminal demo for development
-- **📋 Guided Workflow**: 7-step process with AI assistance
+All tools read `PG_URL` from the environment and reuse the shared connector/validator utilities.
 
 ---
 
-## 📖 Learn More
-
-- **[Agency Swarm Documentation](https://agency-swarm.ai/)**
-- **[Agency Swarm GitHub](https://github.com/VRSEN/agency-swarm)**
+## ✅ Testing & Troubleshooting
+- **Agent demo:** `PYTHONPATH=. python postgresql_agent/postgresql_agent.py`
+- **Agency console:** `python agency.py`
+- **Common issues**
+  - `ImportError: onboarding_config` → Run `python onboarding_tool.py`.
+  - `Error: database_url is required` → Ensure `PG_URL` is set in `.env`.
+  - Guardrail trips on valid SELECT → Double-check the prompt doesn’t mention “update”, “delete”, or other write verbs.
 
 ---
 
 ## 🤝 Contributing
+1. Fork & branch.
+2. Keep edits ASCII-clean and documented.
+3. Include testing notes (commands + outcomes) in your PR.
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
----
-
-## ⚡ Quick Tips
-
-- **Start Small**: Begin with 1-2 agents and expand
-- **Test Tools**: Each tool should work independently
-- **Clear Instructions**: Write detailed agent instructions
-- **Environment Setup**: Always use `.env` for API keys
-- **Documentation**: Update instructions as you develop
-
----
-
-**Ready to build your AI agency?** 🤖✨
-
-### 🌐 **Production Route (Recommended)**
-
-1. **Sign up** at [agencii.ai](https://agencii.ai/)
-2. **Use this template** to create your repository
-3. **Install** [Agencii GitHub App](https://github.com/apps/agencii)
-4. **Push to main** → Automatic deployment!
-
-### 🛠️ **Development Route**
-
-Open this template in **Cursor IDE** and ask the AI to create your agency using the `.cursor` workflow. The AI will handle everything from setup to testing automatically!
-
-For manual development, replace the `ExampleAgency` with your own implementation and start deploying intelligent agent systems!
+Ideas, issues, or enhancements for additional tooling (e.g., query templating, caching, or warehouse fallbacks) are always welcome!
